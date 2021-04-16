@@ -1,6 +1,6 @@
 # Quark2d-PIXI
 
-[Install](#install) - [Example](#Example)
+[Install](#install) - [Example](#Example) - [Docs](https://fominvic81.github.io/Quark2d-PIXI/index.html)
 
 ## Install
 
