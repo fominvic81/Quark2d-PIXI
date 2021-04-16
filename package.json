@@ -1,0 +1,40 @@
+{
+  "name": "quark2d-pixi",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fominvic81/"
+  },
+  "author": "fominvic81 <fomin.vic81@gmail.com>",
+  "description": "Renderer for Quark2d based on PIXI.js",
+  "license": "MIT",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "files": [
+    "build/"
+  ],
+  "keywords": [
+    "javascript",
+    "physics engine",
+    "physics",
+    "game physics",
+    "game engine"
+  ],
+  "scripts": {
+    "serve": "tsc-watch",
+    "docs": "typedoc"
+  },
+  "devDependencies": {
+    "ts-loader": "8.0.14",
+    "tsc-watch": "^4.2.9",
+    "typedoc": "^0.20.35",
+    "typescript": "4.1.3",
+    "webpack": "^4.41.6",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3"
+  },
+  "dependencies": {
+    "pixi.js": "^6.0.2",
+    "quark2d": "^2.0.8"
+  }
+}
