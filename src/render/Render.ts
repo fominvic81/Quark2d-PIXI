@@ -17,7 +17,7 @@ import {
 import { Mouse, QMouseEvent } from '../mouse/Mouse';
 
 interface colors {
-    dynamic?: {(shape: Shape): number};
+    shape?: {(shape: Shape): number};
     constraint?: number;
 }
 
@@ -63,7 +63,7 @@ export class Render {
         showConstraints: boolean;
     };
     colors: {
-        dynamic: {(shape: Shape): number};
+        shape: {(shape: Shape): number};
         constraint: number;
     };
     
@@ -95,7 +95,7 @@ export class Render {
             showConstraints: options.showConstraints ?? false,
         };
         this.colors = {
-            dynamic: options.colors ? (options.colors.dynamic ?? ((shape: Shape) => Render.randomColor())) : ((shape: Shape) => Render.randomColor()),
+            shape: options.colors ? (options.colors.shape ?? ((shape: Shape) => Render.randomColor())) : ((shape: Shape) => Render.randomColor()),
             constraint: options.colors ? (options.colors.constraint ?? PIXI.utils.rgb2hex([0.8, 0.8, 0.8])) : PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
         }
 
@@ -252,7 +252,7 @@ export class Render {
     private addShape (shape: Shape) {
         this.shapes.add(shape);
 
-        const sprite = this.createShapeSprite(shape, this.colors.dynamic(shape));
+        const sprite = this.createShapeSprite(shape, this.colors.shape(shape));
         this.stage.addChild(sprite);
         this.sprites.set(shape.id, sprite);
         this.stage.sortChildren();
