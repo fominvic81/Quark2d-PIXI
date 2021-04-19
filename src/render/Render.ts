@@ -30,6 +30,7 @@ interface RenderOptioins {
     colors?: colors;
     showSleeping?: boolean;
     showCollisions?: boolean;
+    showConstraints?: boolean;
 }
 
 /**
@@ -59,6 +60,7 @@ export class Render {
     options: {
         showSleeping: boolean;
         showCollisions: boolean;
+        showConstraints: boolean;
     };
     colors: {
         dynamic: {(shape: Shape): number};
@@ -90,6 +92,7 @@ export class Render {
         this.options = {
             showSleeping: options.showSleeping ?? true,
             showCollisions: options.showCollisions ?? false,
+            showConstraints: options.showConstraints ?? false,
         };
         this.colors = {
             dynamic: options.colors ? (options.colors.dynamic ?? ((shape: Shape) => Render.randomColor())) : ((shape: Shape) => Render.randomColor()),
@@ -134,6 +137,17 @@ export class Render {
         }
     }
 
+    setShowConstraints (value: boolean) {
+        this.options.showConstraints = value;
+        if (!value) {
+            for (const constraint of this.constraints) {
+                const sprite = this.sprites.get(constraint.id);
+                if (!sprite) continue;
+                sprite.clear();
+            }
+        }
+    }
+
     /**
      * Renders the world.
      */
@@ -143,11 +157,9 @@ export class Render {
         this.stage.pivot.set(-this.renderer.width / (this.scale) * 0.5 - this.translate.x, -this.renderer.height / (this.scale) * 0.5 - this.translate.y);
 
         this.shapes_();
-        this.constraints_();
 
-        if (this.options.showCollisions) {
-            this.collisions();
-        }
+        if (this.options.showConstraints) this.constraints_();
+        if (this.options.showCollisions) this.collisions();
 
         this.renderer.render(this.stage);
     }
