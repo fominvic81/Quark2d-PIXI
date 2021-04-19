@@ -116,6 +116,24 @@ export class Render {
         this.mouse.events.on('wheel', (event) => {this.mouseWheel(event)});
     }
 
+    setShowSleeping (value: boolean) {
+        this.options.showSleeping = value;
+        if (!value) {
+            for (const shape of this.shapes) {
+                const sprite = this.sprites.get(shape.id);
+                if (!sprite) continue;
+                sprite.alpha = 1;
+            }
+        }
+    }
+
+    setShowCollisions (value: boolean) {
+        this.options.showCollisions = value;
+        if (!value) {
+            this.collisionGraphics.clear();
+        }
+    }
+
     /**
      * Renders the world.
      */
