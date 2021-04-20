@@ -31,6 +31,9 @@ interface RenderOptioins {
     showSleeping?: boolean;
     showCollisions?: boolean;
     showConstraints?: boolean;
+    showSensors?: boolean;
+    showAABBs?: boolean;
+    showPositions?: boolean;
 }
 
 /**
@@ -52,7 +55,7 @@ export class Render {
     constraints: Set<Constraint> = new Set();
     sprites: Map<number, PIXI.Graphics> = new Map();
     engine: Engine;
-    collisionGraphics: PIXI.Graphics = new PIXI.Graphics();
+    graphics: PIXI.Graphics = new PIXI.Graphics();
     userGraphics: PIXI.Graphics = new PIXI.Graphics();
     canvas: HTMLCanvasElement;
     mouse: Mouse;
@@ -62,6 +65,9 @@ export class Render {
         showSleeping: boolean;
         showCollisions: boolean;
         showConstraints: boolean;
+        showSensors: boolean;
+        showAABBs: boolean;
+        showPositions: boolean;
     };
     colors: {
         shape: {(shape: Shape): number};
@@ -85,9 +91,9 @@ export class Render {
             backgroundColor: PIXI.utils.rgb2hex([0.2, 0.2, 0.2]),
         });
         this.stage = new PIXI.Container();
-        this.collisionGraphics.zIndex = 1;
+        this.graphics.zIndex = 1;
         this.userGraphics.zIndex = 2;
-        this.stage.addChild(this.collisionGraphics);
+        this.stage.addChild(this.graphics);
      
         this.scale = options.scale ?? 30;
         this.translate = options.translate === undefined ? new Vector(0, 0) : options.translate.clone();
@@ -95,6 +101,9 @@ export class Render {
             showSleeping: options.showSleeping ?? true,
             showCollisions: options.showCollisions ?? false,
             showConstraints: options.showConstraints ?? false,
+            showSensors: options.showSensors ?? true,
+            showAABBs: options.showAABBs ?? false,
+            showPositions: options.showPositions ?? false,
         };
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? ((shape: Shape) => Render.randomColor())) : ((shape: Shape) => Render.randomColor()),
@@ -132,13 +141,6 @@ export class Render {
         }
     }
 
-    setShowCollisions (value: boolean) {
-        this.options.showCollisions = value;
-        if (!value) {
-            this.collisionGraphics.clear();
-        }
-    }
-
     setShowConstraints (value: boolean) {
         this.options.showConstraints = value;
         if (!value) {
@@ -146,6 +148,17 @@ export class Render {
                 const sprite = this.sprites.get(constraint.id);
                 if (!sprite) continue;
                 sprite.clear();
+            }
+        }
+    }
+
+    setShowSensors (value: boolean) {
+        this.options.showSensors = value;
+        if (value) {
+            for (const shape of this.shapes) {
+                const sprite = this.sprites.get(shape.id);
+                if (!sprite) continue;
+                sprite.visible = true;
             }
         }
     }
@@ -158,10 +171,14 @@ export class Render {
         this.stage.scale.set(this.scale, this.scale);
         this.stage.pivot.set(-this.renderer.width / (this.scale) * 0.5 - this.translate.x, -this.renderer.height / (this.scale) * 0.5 - this.translate.y);
 
+        this.graphics.clear();
+
         this.shapes_();
 
         if (this.options.showConstraints) this.constraints_();
         if (this.options.showCollisions) this.collisions();
+        if (this.options.showAABBs) this.AABBs();
+        if (this.options.showPositions) this.positions();
 
         this.renderer.render(this.stage);
     }
@@ -182,6 +199,14 @@ export class Render {
                     case SleepingState.SLEEPING:
                         sprite.alpha = 0.5;
                         break;
+                }
+            }
+            if (shape.isSensor) {
+                if (this.options.showSensors) {
+                    sprite.alpha = 0.3;
+                    sprite.visible = true;
+                } else {
+                    sprite.visible = false;
                 }
             }
 
@@ -218,28 +243,50 @@ export class Render {
      */
     private collisions () {
 
-        this.collisionGraphics.clear();
-        this.collisionGraphics.beginFill(PIXI.utils.rgb2hex([1, 0, 0]));
+        this.graphics.beginFill(PIXI.utils.rgb2hex([1, 0, 0]));
 
         // TODO: use visible aabb
         for (const pair of this.engine.manager.activePairs) {
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
-                this.collisionGraphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
+                this.graphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
             }
         }
 
         for (const pair of this.engine.manager.activePairs) {
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
-                this.collisionGraphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
+                this.graphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
 
-                this.collisionGraphics.moveTo(contact.vertex.x, contact.vertex.y);
-                this.collisionGraphics.lineTo(contact.vertex.x + contact.pair.normal.x * 0.2, contact.vertex.y + contact.pair.normal.y * 0.2);
+                this.graphics.moveTo(contact.vertex.x, contact.vertex.y);
+                this.graphics.lineTo(contact.vertex.x + contact.pair.normal.x * 0.2, contact.vertex.y + contact.pair.normal.y * 0.2);
             }
         }
 
-        this.collisionGraphics.endFill();
+        this.graphics.endFill();
+    }
+
+    AABBs () {
+        this.graphics.lineStyle(0.02, PIXI.utils.rgb2hex([1, 1, 1]));
+        for (const shape of this.shapes) {
+            this.graphics.moveTo(shape.aabb.min.x, shape.aabb.min.y);
+            this.graphics.lineTo(shape.aabb.max.x, shape.aabb.min.y);
+            this.graphics.lineTo(shape.aabb.max.x, shape.aabb.max.y);
+            this.graphics.lineTo(shape.aabb.min.x, shape.aabb.max.y);
+            this.graphics.lineTo(shape.aabb.min.x, shape.aabb.min.y);
+        }
+    }
+
+    positions () {
+        this.graphics.beginFill(PIXI.utils.rgb2hex([0.5, 0.8, 0.1]));
+        this.graphics.line.visible = false;
+        for (const body of this.engine.world.bodies.values()) {
+            this.graphics.drawRect(body.position.x - 0.05, body.position.y - 0.05, 0.1, 0.1);
+        }
+        this.graphics.beginFill(PIXI.utils.rgb2hex([0.8, 0.2, 0.2]));
+        for (const shape of this.shapes) {
+            this.graphics.drawRect(shape.position.x - 0.04, shape.position.y - 0.04, 0.08, 0.08);
+        }
     }
 
     addBody (body: Body) {
