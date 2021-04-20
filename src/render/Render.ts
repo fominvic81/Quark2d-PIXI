@@ -310,7 +310,7 @@ export class Render {
         this.stage.sortChildren();
     }
 
-    addConstraint (constraint: Constraint) {
+    private addConstraint (constraint: Constraint) {
         this.constraints.add(constraint);
 
         const sprite = new PIXI.Graphics();
