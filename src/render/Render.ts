@@ -53,6 +53,7 @@ export class Render {
     sprites: Map<number, PIXI.Graphics> = new Map();
     engine: Engine;
     collisionGraphics: PIXI.Graphics = new PIXI.Graphics();
+    userGraphics: PIXI.Graphics = new PIXI.Graphics();
     canvas: HTMLCanvasElement;
     mouse: Mouse;
     scale: number;
@@ -85,6 +86,7 @@ export class Render {
         });
         this.stage = new PIXI.Container();
         this.collisionGraphics.zIndex = 1;
+        this.userGraphics.zIndex = 2;
         this.stage.addChild(this.collisionGraphics);
      
         this.scale = options.scale ?? 30;
