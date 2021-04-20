@@ -96,6 +96,7 @@ export class Render {
         this.graphics.zIndex = 1;
         this.userGraphics.zIndex = 2;
         this.stage.addChild(this.graphics);
+        this.stage.addChild(this.userGraphics);
      
         this.scale = options.scale ?? 30;
         this.translate = options.translate === undefined ? new Vector(0, 0) : options.translate.clone();
