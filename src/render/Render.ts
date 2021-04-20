@@ -18,6 +18,7 @@ import { Mouse, QMouseEvent } from '../mouse/Mouse';
 
 interface colors {
     shape?: {(shape: Shape): number};
+    shapeOutline?: {(shape: Shape): number};
     constraint?: number;
 }
 
@@ -71,6 +72,7 @@ export class Render {
     };
     colors: {
         shape: {(shape: Shape): number};
+        shapeOutline: {(shape: Shape): number};
         constraint: number;
     };
     
@@ -106,7 +108,8 @@ export class Render {
             showPositions: options.showPositions ?? false,
         };
         this.colors = {
-            shape: options.colors ? (options.colors.shape ?? ((shape: Shape) => Render.randomColor())) : ((shape: Shape) => Render.randomColor()),
+            shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
+            shapeOutline: options.colors ? (options.colors.shapeOutline ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8])),
             constraint: options.colors ? (options.colors.constraint ?? PIXI.utils.rgb2hex([0.8, 0.8, 0.8])) : PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
         }
 
@@ -332,6 +335,7 @@ export class Render {
     private createCircleSprite (circle: Circle, color: number): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
+        sprite.lineStyle(0.03, this.colors.shapeOutline(circle));
         sprite.beginFill(color);
         const p = [];
 
@@ -352,6 +356,7 @@ export class Render {
     private createConvexSprite (convex: Convex, color: number): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
+        sprite.lineStyle(0.03, this.colors.shapeOutline(convex));
         const verts = Vertices.create(convex.vertices);
         Vertices.translate(verts, convex.position.neg(Vector.temp[0]));
         Vertices.rotate(verts, -(<Body>convex.body).angle);
@@ -373,6 +378,7 @@ export class Render {
     private createEdgeSprite (edge: Edge, color: number): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
+        sprite.lineStyle(0.03, this.colors.shapeOutline(edge));
         const verts = Vertices.create([edge.start, edge.end]);
         Vertices.translate(verts, edge.position.neg(Vector.temp[0]));
         Vertices.rotate(verts, -(<Body>edge.body).angle);
