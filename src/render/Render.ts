@@ -19,7 +19,7 @@ import { Mouse, QMouseEvent } from '../mouse/Mouse';
 interface colors {
     shape?: {(shape: Shape): number};
     shapeOutline?: {(shape: Shape): number};
-    constraint?: number;
+    constraint?: {(constraint: Constraint): number};
 }
 
 interface RenderOptioins {
@@ -73,7 +73,7 @@ export class Render {
     colors: {
         shape: {(shape: Shape): number};
         shapeOutline: {(shape: Shape): number};
-        constraint: number;
+        constraint: {(constraint: Constraint): number};
     };
     
     constructor (engine: Engine, options: RenderOptioins = {element: document.body}) {
@@ -110,7 +110,7 @@ export class Render {
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
             shapeOutline: options.colors ? (options.colors.shapeOutline ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8])),
-            constraint: options.colors ? (options.colors.constraint ?? PIXI.utils.rgb2hex([0.8, 0.8, 0.8])) : PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
+            constraint: options.colors ? (options.colors.constraint ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : () => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
         }
 
         for (const body of engine.world.bodies.values()) {
@@ -233,7 +233,7 @@ export class Render {
             
             switch (constraint.type) {
                 case ConstraintType.DISTANCE_CONSTRAINT:
-                    sprite.lineStyle(0.08, this.colors.constraint);
+                    sprite.lineStyle(0.08, this.colors.constraint(constraint));
                     sprite.moveTo(pointA.x, pointA.y);
                     sprite.lineTo(pointB.x, pointB.y);
                     break;
