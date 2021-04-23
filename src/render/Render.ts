@@ -124,8 +124,14 @@ export class Render {
         engine.world.events.on('add-body', (event) => {
             this.addBody(event.body);
         });
+        engine.world.events.on('remove-body', (event) => {
+            this.removeBody(event.body);
+        });
         engine.world.events.on('add-constraint', (event) => {
             this.addConstraint(event.constraint);
+        });
+        engine.world.events.on('remove-constraint', (event) => {
+            this.removeConstraint(event.constraint);
         });
 
         this.mouse = new Mouse(this);
@@ -293,13 +299,19 @@ export class Render {
         }
     }
 
-    addBody (body: Body) {
+    private addBody (body: Body) {
         for (const shape of body.shapes) {
             this.addShape(shape);
         }
         body.events.on('add-shape', (event) => {
             this.addShape(event.shape);
         });
+    }
+
+    private removeBody (body: Body) {
+        for (const shape of body.shapes) {
+            this.removeShape(shape);
+        }
     }
 
     private addShape (shape: Shape) {
@@ -311,6 +323,13 @@ export class Render {
         this.stage.sortChildren();
     }
 
+    private removeShape (shape: Shape) {
+        this.shapes.delete(shape);
+        const sprite = this.sprites.get(shape.id);
+        if (sprite) this.stage.removeChild(sprite);
+        this.sprites.delete(shape.id);
+    }
+
     private addConstraint (constraint: Constraint) {
         this.constraints.add(constraint);
 
@@ -318,6 +337,13 @@ export class Render {
         this.stage.addChild(sprite);
         this.sprites.set(constraint.id, sprite);
         this.stage.sortChildren();
+    }
+
+    private removeConstraint (constraint: Constraint) {
+        this.constraints.delete(constraint);
+        const sprite = this.sprites.get(constraint.id);
+        if (sprite) this.stage.removeChild(sprite);
+        this.sprites.delete(constraint.id);
     }
 
     private createShapeSprite (shape: Shape, color: number) {
