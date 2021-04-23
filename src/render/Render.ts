@@ -214,7 +214,7 @@ export class Render {
                 }
             }
 
-            sprite.position.set(shape.position.x, shape.position.y);
+            sprite.position.set(shape.body?.position.x, shape.body?.position.y);
             sprite.rotation = (<Body>shape.body).angle;
         }
     }
@@ -343,8 +343,8 @@ export class Render {
         const count = 50;
         for (let i = 0; i < count; ++i) {
             p.push(
-                Math.sin(i/count * Math.PI * 2) * (circle.radius),
-                Math.cos(i/count * Math.PI * 2) * (circle.radius)
+                Math.sin(i/count * Math.PI * 2) * (circle.radius) - (<Body>circle.body).position.x + circle.position.x,
+                Math.cos(i/count * Math.PI * 2) * (circle.radius) - (<Body>circle.body).position.y + circle.position.y,
             );
         }
         sprite.drawPolygon(p);
@@ -358,8 +358,9 @@ export class Render {
         const sprite = new PIXI.Graphics();
 
         sprite.lineStyle(0.03, this.colors.shapeOutline(convex));
+
         const verts = Vertices.create(convex.vertices);
-        Vertices.translate(verts, convex.position.neg(Vector.temp[0]));
+        Vertices.translate(verts, (<Body>convex.body).position.neg(Vector.temp[0]));
         Vertices.rotate(verts, -(<Body>convex.body).angle);
         const normals = Vertices.create(convex.normals);
         Vertices.rotate(normals, -(<Body>convex.body).angle);
@@ -380,8 +381,9 @@ export class Render {
         const sprite = new PIXI.Graphics();
 
         sprite.lineStyle(0.03, this.colors.shapeOutline(edge));
+
         const verts = Vertices.create([edge.start, edge.end]);
-        Vertices.translate(verts, edge.position.neg(Vector.temp[0]));
+        Vertices.translate(verts, (<Body>edge.body).position.neg(Vector.temp[0]));
         Vertices.rotate(verts, -(<Body>edge.body).angle);
         const normals = Vertices.create([edge.ngNormal, edge.normal]);
         Vertices.rotate(normals, -(<Body>edge.body).angle);
