@@ -264,6 +264,7 @@ export class Render {
         }
 
         for (const pair of this.engine.manager.activePairs) {
+            if (pair.isSensor) continue;
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
                 this.graphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
