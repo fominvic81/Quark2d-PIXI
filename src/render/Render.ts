@@ -61,6 +61,7 @@ export class Render {
     canvas: HTMLCanvasElement;
     mouse: Mouse;
     scale: number;
+    realScale: number;
     translate: Vector;
     options: {
         showSleeping: boolean;
@@ -97,8 +98,10 @@ export class Render {
         this.userGraphics.zIndex = 2;
         this.stage.addChild(this.graphics);
         this.stage.addChild(this.userGraphics);
-     
+
         this.scale = options.scale ?? 30;
+        this.realScale = this.scale;
+        this.setScale(this.scale);
         this.translate = options.translate === undefined ? new Vector(0, 0) : options.translate.clone();
         this.options = {
             showSleeping: options.showSleeping ?? true,
@@ -177,9 +180,8 @@ export class Render {
      * Renders the world.
      */
     update () {
-
-        this.stage.scale.set(this.scale, this.scale);
-        this.stage.pivot.set(-this.renderer.width / (this.scale) * 0.5 - this.translate.x, -this.renderer.height / (this.scale) * 0.5 - this.translate.y);
+        this.stage.scale.set(this.realScale, this.realScale);
+        this.stage.pivot.set(-this.renderer.width / (this.realScale) * 0.5 - this.translate.x, -this.renderer.height / (this.realScale) * 0.5 - this.translate.y);
 
         this.graphics.clear();
 
@@ -482,6 +484,11 @@ export class Render {
     }
 
     mouseWheel (event: QMouseEvent) {
-        this.scale -= event.event.deltaY * this.scale / 2000;
+        this.setScale(this.scale - event.event.deltaY * this.scale / 1000);
+    }
+
+    setScale (scale: number) {
+        this.scale = scale;
+        this.realScale = this.scale * Math.min(this.canvas.width, this.canvas.height) / 1500;
     }
 }

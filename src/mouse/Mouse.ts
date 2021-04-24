@@ -97,7 +97,6 @@ export class Mouse {
 
     mouseWheel (event: MouseEvent) {
         this.events.trigger('wheel', [{mouse: this, event}]);
-        console.log(event);
     }
 
     touchStart (event: TouchEvent) {
@@ -165,15 +164,15 @@ export class Mouse {
 
     updatePosition () {
         this.position.set(
-            (this.localPosition.x - this.render.canvas.width / 2) / this.render.scale - this.render.translate.x,
-            (this.localPosition.y - this.render.canvas.height / 2) / this.render.scale - this.render.translate.y
+            (this.localPosition.x - this.render.canvas.width / 2) / this.render.realScale - this.render.translate.x,
+            (this.localPosition.y - this.render.canvas.height / 2) / this.render.realScale - this.render.translate.y
         );
     }
 
     updateMovement () {
         this.movement.set(
-            this.localMovement.x / this.render.scale,
-            this.localMovement.y / this.render.scale,
+            this.localMovement.x / this.render.realScale,
+            this.localMovement.y / this.render.realScale,
         );
     }
 
