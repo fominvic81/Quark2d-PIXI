@@ -35,6 +35,6 @@
   },
   "dependencies": {
     "pixi.js": "^6.0.2",
-    "quark2d": "^2.1.0"
+    "quark2d": "^2.2.0"
   }
 }

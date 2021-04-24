@@ -3348,10 +3348,10 @@ qs@6.7.0:
   resolved "https://registry.yarnpkg.com/qs/-/qs-6.7.0.tgz#41dc1a015e3d581f1621776be31afb2876a9b1bc"
   integrity sha512-VCdBRNFTX1fyE7Nb6FYoURo/SPe62QCaAyzJvUjwRaIsc+NePBEniHlvxFmmX56+HZphIGtV0XeCirBtpDrTyQ==
 
-quark2d@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/quark2d/-/quark2d-2.1.0.tgz#d23bedb3f6bc3196e5aa6177072a5b42c962082e"
-  integrity sha512-cvbC90EGb1JGG/OzK5D/EL6VUYHsB7TqUhcltBVMTwmTwgJ8QqUHrGetUyXxllqgTSdHtncgufvHRB9d6pUkdg==
+quark2d@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/quark2d/-/quark2d-2.2.0.tgz#739198e635e27245394a83ef610d613b41d7b7c1"
+  integrity sha512-jGaszuGs4Pc3kMBybnWKYeG0ibWpiAxs6lAy2JyCBQ8CQdcpvjeyDWxRwMIOUiOVId8MJW8ldSTdWRgv+priZA==
   dependencies:
     poly-decomp "^0.3.0"
 
