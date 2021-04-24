@@ -22,6 +22,9 @@ export class Mouse {
     mouseupListener = (event: MouseEvent) => this.mouseUp(event);
     mousemoveListener = (event: MouseEvent) => this.mouseMove(event);
     wheelListener = (event: MouseEvent) => this.mouseWheel(event);
+    touchstartListener = (event: TouchEvent) => this.touchStart(event);
+    touchendListener = (event: TouchEvent) => this.touchEnd(event);
+    touchmoveListener = (event: TouchEvent) => this.touchMove(event);
 
     constructor (render: Render) {
 
@@ -31,6 +34,11 @@ export class Mouse {
         this.render.canvas.addEventListener('mouseup', this.mouseupListener);
         this.render.canvas.addEventListener('mousemove', this.mousemoveListener);
         this.render.canvas.addEventListener('wheel', this.wheelListener);
+        if (this.render.canvas.parentElement) {
+            this.render.canvas.parentElement.addEventListener('touchstart', this.touchstartListener);
+            this.render.canvas.parentElement.addEventListener('touchend', this.touchendListener);
+            this.render.canvas.parentElement.addEventListener('touchmove', this.touchmoveListener);
+        }
     }
 
     removeListeners () {
@@ -89,6 +97,70 @@ export class Mouse {
 
     mouseWheel (event: MouseEvent) {
         this.events.trigger('wheel', [{mouse: this, event}]);
+        console.log(event);
+    }
+
+    touchStart (event: TouchEvent) {
+        if (this.render.canvas.parentElement && event.target && event.target === this.render.canvas) {
+            this.pressed = true;
+
+            this.leftButtonPressed = true;
+            if (event.touches.length > 1) {
+                this.rightButtonPressed = true;
+            }
+
+            // @ts-ignore
+            const {x, y, width, height} = event.target.getBoundingClientRect();
+            // @ts-ignore
+            const offsetX = (event.touches[0].clientX - x) / width * event.target.offsetWidth;
+            // @ts-ignore
+            const offsetY = (event.touches[0].clientY - y) / height * event.target.offsetHeight;
+
+            this.localPosition.set(offsetX, offsetY);
+            this.updatePosition();
+
+            this.events.trigger('mouse-down', [{mouse: this, event}]);
+        }
+    }
+
+    touchEnd (event: TouchEvent) {
+        if (this.render.canvas.parentElement && event.target && event.target === this.render.canvas) {
+            this.pressed = false;
+            this.leftButtonPressed = false;
+            this.rightButtonPressed = false;
+
+            // @ts-ignore
+            const {x, y, width, height} = event.target.getBoundingClientRect();
+            // @ts-ignore
+            const offsetX = (event.changedTouches[0].clientX - x) / width * event.target.offsetWidth;
+            // @ts-ignore
+            const offsetY = (event.changedTouches[0].clientY - y) / height * event.target.offsetHeight;
+
+            this.localPosition.set(offsetX, offsetY);
+            this.updatePosition();
+
+            this.events.trigger('mouse-up', [{mouse: this, event}]);
+        }
+    }
+
+    touchMove (event: TouchEvent) {
+        if (this.render.canvas.parentElement && event.target && event.target === this.render.canvas) {
+            // @ts-ignore
+            const {x, y, width, height} = event.target.getBoundingClientRect();
+            // @ts-ignore
+            const offsetX = (event.touches[0].clientX - x) / width * event.target.offsetWidth;
+            // @ts-ignore
+            const offsetY = (event.touches[0].clientY - y) / height * event.target.offsetHeight;
+
+            this.localMovement.x = offsetX - this.localPosition.x;
+            this.localMovement.y = offsetY - this.localPosition.y;
+            this.updateMovement();
+
+            this.localPosition.set(offsetX, offsetY);
+            this.updatePosition();
+
+            this.events.trigger('mouse-move', [{mouse: this, event}]);
+        }
     }
 
     updatePosition () {

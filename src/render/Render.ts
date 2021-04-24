@@ -483,6 +483,5 @@ export class Render {
 
     mouseWheel (event: QMouseEvent) {
         this.scale -= event.event.deltaY * this.scale / 2000;
-        this.scale -= event.event.deltaY * this.scale / 2000;
     }
 }
