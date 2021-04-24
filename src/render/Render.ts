@@ -259,6 +259,7 @@ export class Render {
 
         // TODO: use visible aabb
         for (const pair of this.engine.manager.activePairs) {
+            if (pair.isSensor) continue;
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
                 this.graphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
