@@ -174,9 +174,9 @@ export class Render {
 
         this.graphics.clear();
 
-        this.shapes_();
+        this.shapes();
 
-        if (this.options.showConstraints) this.constraints_();
+        if (this.options.showConstraints) this.constraints();
         if (this.options.showCollisions) this.collisions();
         if (this.options.showAABBs) this.AABBs();
         if (this.options.showPositions) this.positions();
@@ -187,7 +187,7 @@ export class Render {
     /**
      * Renders the shapes.
      */
-    private shapes_ () {
+    private shapes () {
         for (const body of this.engine.world.bodies.values()) {
             for (const shape of body.shapes) {
                 let sprite = this.sprites.get(shape.id);
@@ -226,11 +226,12 @@ export class Render {
     /**
      * Renders the constraints
      */
-    private constraints_ () {
+    private constraints () {
         for (const constraint of this.engine.world.constraints.values()) {
             let sprite = this.sprites.get(constraint.id);
             if (!sprite) {
                 sprite = new PIXI.Graphics();
+                sprite.zIndex = 4;
                 this.stage.addChild(sprite);
                 this.sprites.set(constraint.id, sprite);
                 this.stage.sortChildren();
@@ -240,7 +241,12 @@ export class Render {
             const pointB = constraint.getWorldPointB();
 
             sprite.clear();
-            
+
+            sprite.beginFill(this.colors.constraint(constraint));
+            sprite.drawRoundedRect(pointA.x - 0.1, pointA.y - 0.1, 0.2, 0.2, 0.1);
+            sprite.drawRoundedRect(pointB.x - 0.1, pointB.y - 0.1, 0.2, 0.2, 0.1);
+            sprite.endFill();
+
             switch (constraint.type) {
                 case ConstraintType.DISTANCE_CONSTRAINT:
                     sprite.lineStyle(0.08, this.colors.constraint(constraint));
@@ -354,8 +360,9 @@ export class Render {
             );
         }
         sprite.drawPolygon(p);
-
         sprite.endFill();
+
+        sprite.zIndex = 3;
 
         return sprite;
     }
@@ -380,6 +387,8 @@ export class Render {
         sprite.drawPolygon(path);
         sprite.endFill();
 
+        sprite.zIndex = 3;
+
         return sprite;
     }
 
@@ -402,6 +411,8 @@ export class Render {
         sprite.beginFill(this.colors.shape(edge));
         sprite.drawPolygon(path);
         sprite.endFill();
+
+        sprite.zIndex = 3;
 
         return sprite;
     }
