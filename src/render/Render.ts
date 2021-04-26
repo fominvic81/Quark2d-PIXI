@@ -52,8 +52,6 @@ interface RenderOptioins {
 export class Render {
     renderer: PIXI.Renderer;
     stage: PIXI.Container;
-    shapes: Set<Shape> = new Set();
-    constraints: Set<Constraint> = new Set();
     sprites: Map<number, PIXI.Graphics> = new Map();
     engine: Engine;
     graphics: PIXI.Graphics = new PIXI.Graphics();
@@ -117,21 +115,8 @@ export class Render {
             constraint: options.colors ? (options.colors.constraint ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : () => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
         }
 
-        for (const body of engine.world.bodies.values()) {
-            this.addBody(body);
-        }
-        for (const constraint of engine.world.constraints.values()) {
-            this.addConstraint(constraint);
-        }
-
-        engine.world.events.on('add-body', (event) => {
-            this.addBody(event.body);
-        });
         engine.world.events.on('remove-body', (event) => {
             this.removeBody(event.body);
-        });
-        engine.world.events.on('add-constraint', (event) => {
-            this.addConstraint(event.constraint);
         });
         engine.world.events.on('remove-constraint', (event) => {
             this.removeConstraint(event.constraint);
@@ -146,10 +131,12 @@ export class Render {
     setShowSleeping (value: boolean) {
         this.options.showSleeping = value;
         if (!value) {
-            for (const shape of this.shapes) {
-                const sprite = this.sprites.get(shape.id);
-                if (!sprite) continue;
-                sprite.alpha = 1;
+            for (const body of this.engine.world.bodies.values()) {
+                for (const shape of body.shapes) {
+                    const sprite = this.sprites.get(shape.id);
+                    if (!sprite) continue;
+                    sprite.alpha = 1;
+                }
             }
         }
     }
@@ -157,7 +144,7 @@ export class Render {
     setShowConstraints (value: boolean) {
         this.options.showConstraints = value;
         if (!value) {
-            for (const constraint of this.constraints) {
+            for (const constraint of this.engine.world.constraints.values()) {
                 const sprite = this.sprites.get(constraint.id);
                 if (!sprite) continue;
                 sprite.clear();
@@ -168,10 +155,12 @@ export class Render {
     setShowSensors (value: boolean) {
         this.options.showSensors = value;
         if (value) {
-            for (const shape of this.shapes) {
-                const sprite = this.sprites.get(shape.id);
-                if (!sprite) continue;
-                sprite.visible = true;
+            for (const body of this.engine.world.bodies.values()) {
+                for (const shape of body.shapes) {
+                    const sprite = this.sprites.get(shape.id);
+                    if (!sprite) continue;
+                    sprite.visible = true;
+                }
             }
         }
     }
@@ -199,31 +188,38 @@ export class Render {
      * Renders the shapes.
      */
     private shapes_ () {
-        for (const shape of this.shapes) {
-            const sprite = this.sprites.get(shape.id);
-            if (!sprite) continue;
-
-            if (this.options.showSleeping) {
-                switch ((<Body>shape.body).sleepState) {
-                    case SleepingState.AWAKE:
-                        sprite.alpha = 1;
-                        break;
-                    case SleepingState.SLEEPING:
-                        sprite.alpha = 0.5;
-                        break;
+        for (const body of this.engine.world.bodies.values()) {
+            for (const shape of body.shapes) {
+                let sprite = this.sprites.get(shape.id);
+                if (!sprite) {
+                    sprite = this.createShapeSprite(shape);
+                    this.stage.addChild(sprite);
+                    this.sprites.set(shape.id, sprite);
+                    this.stage.sortChildren();
                 }
-            }
-            if (shape.isSensor) {
-                if (this.options.showSensors) {
-                    sprite.alpha = 0.3;
-                    sprite.visible = true;
-                } else {
-                    sprite.visible = false;
-                }
-            }
 
-            sprite.position.set(shape.body?.position.x, shape.body?.position.y);
-            sprite.rotation = (<Body>shape.body).angle;
+                if (this.options.showSleeping) {
+                    switch ((<Body>shape.body).sleepState) {
+                        case SleepingState.AWAKE:
+                            sprite.alpha = 1;
+                            break;
+                        case SleepingState.SLEEPING:
+                            sprite.alpha = 0.5;
+                            break;
+                    }
+                }
+                if (shape.isSensor) {
+                    if (this.options.showSensors) {
+                        sprite.alpha = 0.3;
+                        sprite.visible = true;
+                    } else {
+                        sprite.visible = false;
+                    }
+                }
+
+                sprite.position.set(shape.body?.position.x, shape.body?.position.y);
+                sprite.rotation = (<Body>shape.body).angle;
+            }
         }
     }
 
@@ -231,9 +227,14 @@ export class Render {
      * Renders the constraints
      */
     private constraints_ () {
-        for (const constraint of this.constraints) {
-            const sprite = this.sprites.get(constraint.id);
-            if (!sprite) continue;
+        for (const constraint of this.engine.world.constraints.values()) {
+            let sprite = this.sprites.get(constraint.id);
+            if (!sprite) {
+                sprite = new PIXI.Graphics();
+                this.stage.addChild(sprite);
+                this.sprites.set(constraint.id, sprite);
+                this.stage.sortChildren();
+            }
 
             const pointA = constraint.getWorldPointA();
             const pointB = constraint.getWorldPointB();
@@ -282,12 +283,14 @@ export class Render {
 
     AABBs () {
         this.graphics.lineStyle(0.02, PIXI.utils.rgb2hex([1, 1, 1]));
-        for (const shape of this.shapes) {
-            this.graphics.moveTo(shape.aabb.min.x, shape.aabb.min.y);
-            this.graphics.lineTo(shape.aabb.max.x, shape.aabb.min.y);
-            this.graphics.lineTo(shape.aabb.max.x, shape.aabb.max.y);
-            this.graphics.lineTo(shape.aabb.min.x, shape.aabb.max.y);
-            this.graphics.lineTo(shape.aabb.min.x, shape.aabb.min.y);
+        for (const body of this.engine.world.bodies.values()) {
+            for (const shape of body.shapes) {
+                this.graphics.moveTo(shape.aabb.min.x, shape.aabb.min.y);
+                this.graphics.lineTo(shape.aabb.max.x, shape.aabb.min.y);
+                this.graphics.lineTo(shape.aabb.max.x, shape.aabb.max.y);
+                this.graphics.lineTo(shape.aabb.min.x, shape.aabb.max.y);
+                this.graphics.lineTo(shape.aabb.min.x, shape.aabb.min.y);
+            }
         }
     }
 
@@ -298,18 +301,11 @@ export class Render {
             this.graphics.drawRect(body.position.x - 0.05, body.position.y - 0.05, 0.1, 0.1);
         }
         this.graphics.beginFill(PIXI.utils.rgb2hex([0.8, 0.2, 0.2]));
-        for (const shape of this.shapes) {
-            this.graphics.drawRect(shape.position.x - 0.04, shape.position.y - 0.04, 0.08, 0.08);
+            for (const body of this.engine.world.bodies.values()) {
+                for (const shape of body.shapes) {
+                this.graphics.drawRect(shape.position.x - 0.04, shape.position.y - 0.04, 0.08, 0.08);
+            }
         }
-    }
-
-    private addBody (body: Body) {
-        for (const shape of body.shapes) {
-            this.addShape(shape);
-        }
-        body.events.on('add-shape', (event) => {
-            this.addShape(event.shape);
-        });
     }
 
     private removeBody (body: Body) {
@@ -318,56 +314,36 @@ export class Render {
         }
     }
 
-    private addShape (shape: Shape) {
-        this.shapes.add(shape);
-
-        const sprite = this.createShapeSprite(shape, this.colors.shape(shape));
-        this.stage.addChild(sprite);
-        this.sprites.set(shape.id, sprite);
-        this.stage.sortChildren();
-    }
-
     private removeShape (shape: Shape) {
-        this.shapes.delete(shape);
         const sprite = this.sprites.get(shape.id);
         if (sprite) this.stage.removeChild(sprite);
         this.sprites.delete(shape.id);
     }
 
-    private addConstraint (constraint: Constraint) {
-        this.constraints.add(constraint);
-
-        const sprite = new PIXI.Graphics();
-        this.stage.addChild(sprite);
-        this.sprites.set(constraint.id, sprite);
-        this.stage.sortChildren();
-    }
-
     private removeConstraint (constraint: Constraint) {
-        this.constraints.delete(constraint);
         const sprite = this.sprites.get(constraint.id);
         if (sprite) this.stage.removeChild(sprite);
         this.sprites.delete(constraint.id);
     }
 
-    private createShapeSprite (shape: Shape, color: number) {
+    private createShapeSprite (shape: Shape) {
         switch (shape.type) {
             case ShapeType.CIRCLE:
-                return this.createCircleSprite(<Circle>shape, color);
+                return this.createCircleSprite(<Circle>shape);
             case ShapeType.CONVEX:
-                return this.createConvexSprite(<Convex>shape, color);
+                return this.createConvexSprite(<Convex>shape);
             case ShapeType.EDGE:
-                return this.createEdgeSprite(<Edge>shape, color);
+                return this.createEdgeSprite(<Edge>shape);
             default:
                 throw new Error();
         }
     }
 
-    private createCircleSprite (circle: Circle, color: number): PIXI.Graphics {
+    private createCircleSprite (circle: Circle): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
         sprite.lineStyle(0.03, this.colors.shapeOutline(circle));
-        sprite.beginFill(color);
+        sprite.beginFill(this.colors.shape(circle));
         const p = [];
 
         const count = 50;
@@ -384,7 +360,7 @@ export class Render {
         return sprite;
     }
 
-    private createConvexSprite (convex: Convex, color: number): PIXI.Graphics {
+    private createConvexSprite (convex: Convex): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
         sprite.lineStyle(0.03, this.colors.shapeOutline(convex));
@@ -400,14 +376,14 @@ export class Render {
         for (const vertex of vertices) {
             path.push(vertex.x, vertex.y);
         }
-        sprite.beginFill(color);
+        sprite.beginFill(this.colors.shape(convex));
         sprite.drawPolygon(path);
         sprite.endFill();
 
         return sprite;
     }
 
-    private createEdgeSprite (edge: Edge, color: number): PIXI.Graphics {
+    private createEdgeSprite (edge: Edge): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
         sprite.lineStyle(0.03, this.colors.shapeOutline(edge));
@@ -423,7 +399,7 @@ export class Render {
         for (const vertex of vertices) {
             path.push(vertex.x, vertex.y);
         }
-        sprite.beginFill(color);
+        sprite.beginFill(this.colors.shape(edge));
         sprite.drawPolygon(path);
         sprite.endFill();
 
