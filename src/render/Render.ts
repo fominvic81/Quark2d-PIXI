@@ -35,6 +35,7 @@ interface RenderOptioins {
     showSensors?: boolean;
     showAABBs?: boolean;
     showPositions?: boolean;
+    showStatus?: boolean;
 }
 
 /**
@@ -51,9 +52,12 @@ interface RenderOptioins {
 
 export class Render {
     renderer: PIXI.Renderer;
-    stage: PIXI.Container;
+    stage: PIXI.Container = new PIXI.Container();
     sprites: Map<number, PIXI.Graphics> = new Map();
     engine: Engine;
+    textContainer: PIXI.Container = new PIXI.Container();
+    statusText: PIXI.Text = new PIXI.Text('', {fontSize: 20, fill: PIXI.utils.rgb2hex([0.6, 0.6, 0.6])});
+    statusUpdateTimer: number = 0;
     graphics: PIXI.Graphics = new PIXI.Graphics();
     userGraphics: PIXI.Graphics = new PIXI.Graphics();
     canvas: HTMLCanvasElement;
@@ -68,6 +72,7 @@ export class Render {
         showSensors: boolean;
         showAABBs: boolean;
         showPositions: boolean;
+        showStatus: boolean;
     };
     colors: {
         shape: {(shape: Shape): number};
@@ -91,11 +96,15 @@ export class Render {
             antialias: true,
             backgroundColor: PIXI.utils.rgb2hex([0.2, 0.2, 0.2]),
         });
-        this.stage = new PIXI.Container();
+        this.textContainer.zIndex = 5;
         this.graphics.zIndex = 1;
         this.userGraphics.zIndex = 2;
+        this.stage.addChild(this.textContainer);
         this.stage.addChild(this.graphics);
         this.stage.addChild(this.userGraphics);
+        
+        this.statusText.resolution = 20;
+        this.textContainer.addChild(this.statusText);
 
         this.scale = options.scale ?? 30;
         this.realScale = this.scale;
@@ -108,6 +117,7 @@ export class Render {
             showSensors: options.showSensors ?? true,
             showAABBs: options.showAABBs ?? false,
             showPositions: options.showPositions ?? false,
+            showStatus: options.showStatus ?? true,
         };
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
@@ -168,18 +178,21 @@ export class Render {
     /**
      * Renders the world.
      */
-    update () {
+    update (delta: number) {
+        this.statusUpdateTimer += delta;
+        this.graphics.clear();
+
+        this.textContainer.pivot.set(this.renderer.width * 0.5 + this.translate.x * this.realScale, this.renderer.height * 0.5 + this.translate.y * this.realScale);
+        this.textContainer.scale.set(1/this.realScale, 1/this.realScale);
         this.stage.scale.set(this.realScale, this.realScale);
         this.stage.pivot.set(-this.renderer.width / (this.realScale) * 0.5 - this.translate.x, -this.renderer.height / (this.realScale) * 0.5 - this.translate.y);
 
-        this.graphics.clear();
-
         this.shapes();
-
         if (this.options.showConstraints) this.constraints();
         if (this.options.showCollisions) this.collisions();
         if (this.options.showAABBs) this.AABBs();
         if (this.options.showPositions) this.positions();
+        if (this.options.showStatus) this.status();
 
         this.renderer.render(this.stage);
     }
@@ -311,6 +324,22 @@ export class Render {
                 for (const shape of body.shapes) {
                 this.graphics.drawRect(shape.position.x - 0.04, shape.position.y - 0.04, 0.08, 0.08);
             }
+        }
+    }
+
+    status () {
+        if (this.statusUpdateTimer > 0.1) {
+            this.statusUpdateTimer = 0;
+            let text = '';
+
+            text += `tps: ${this.engine.timestamp?.tps?.toFixed(1)}\n`
+            text += `bodies: ${this.engine.world.bodies.size}\n`;
+            text += `constraints: ${this.engine.world.constraints.size}\n`;
+            text += `broadphase pairs: ${this.engine.manager.broadphase.activePairs.size}\n`;
+            text += `midphase pairs: ${this.engine.manager.midphase.activePairs.length}\n`;
+            text += `narrowphase pairs: ${this.engine.manager.activePairs.length}\n`;
+
+            this.statusText.text = text;
         }
     }
 
