@@ -117,7 +117,7 @@ export class Render {
             showSensors: options.showSensors ?? true,
             showAABBs: options.showAABBs ?? false,
             showPositions: options.showPositions ?? false,
-            showStatus: options.showStatus ?? true,
+            showStatus: options.showStatus ?? false,
         };
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
