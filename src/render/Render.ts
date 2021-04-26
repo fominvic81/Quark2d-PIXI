@@ -26,6 +26,7 @@ interface RenderOptioins {
     element: HTMLElement;
     width?: number;
     height?: number;
+    backgroundColor?: number;
     translate?: Vector;
     scale?: number;
     colors?: colors;
@@ -94,7 +95,7 @@ export class Render {
             height,
             view: this.canvas,
             antialias: true,
-            backgroundColor: PIXI.utils.rgb2hex([0.2, 0.2, 0.2]),
+            backgroundColor: options.backgroundColor ?? PIXI.utils.rgb2hex([0.2, 0.2, 0.2]),
         });
         this.textContainer.zIndex = 5;
         this.graphics.zIndex = 1;
