@@ -97,9 +97,9 @@ export class Render {
             antialias: true,
             backgroundColor: options.backgroundColor ?? PIXI.utils.rgb2hex([0.2, 0.2, 0.2]),
         });
-        this.textContainer.zIndex = 5;
-        this.graphics.zIndex = 1;
-        this.userGraphics.zIndex = 2;
+        this.textContainer.zIndex = 4;
+        this.graphics.zIndex = 3;
+        this.userGraphics.zIndex = 5;
         this.stage.addChild(this.textContainer);
         this.stage.addChild(this.graphics);
         this.stage.addChild(this.userGraphics);
@@ -245,7 +245,7 @@ export class Render {
             let sprite = this.sprites.get(constraint.id);
             if (!sprite) {
                 sprite = new PIXI.Graphics();
-                sprite.zIndex = 4;
+                sprite.zIndex = 2;
                 this.stage.addChild(sprite);
                 this.sprites.set(constraint.id, sprite);
                 this.stage.sortChildren();
@@ -392,7 +392,7 @@ export class Render {
         sprite.drawPolygon(p);
         sprite.endFill();
 
-        sprite.zIndex = 3;
+        sprite.zIndex = 1;
 
         return sprite;
     }
@@ -417,7 +417,7 @@ export class Render {
         sprite.drawPolygon(path);
         sprite.endFill();
 
-        sprite.zIndex = 3;
+        sprite.zIndex = 1;
 
         return sprite;
     }
@@ -442,7 +442,7 @@ export class Render {
         sprite.drawPolygon(path);
         sprite.endFill();
 
-        sprite.zIndex = 3;
+        sprite.zIndex = 1;
 
         return sprite;
     }
