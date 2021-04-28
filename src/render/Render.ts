@@ -120,10 +120,11 @@ export class Render {
             showPositions: options.showPositions ?? false,
             showStatus: options.showStatus ?? false,
         };
+        let constrColor = PIXI.utils.rgb2hex([0.8, 0.8, 0.8]);
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
             shapeOutline: options.colors ? (options.colors.shapeOutline ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8])),
-            constraint: options.colors ? (options.colors.constraint ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : () => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]),
+            constraint: options.colors ? (options.colors.constraint ?? (() => constrColor)) : () => constrColor,
         }
 
         engine.world.events.on('remove-body', (event) => {
@@ -257,8 +258,8 @@ export class Render {
             sprite.clear();
 
             sprite.beginFill(this.colors.constraint(constraint));
-            sprite.drawRoundedRect(pointA.x - 0.1, pointA.y - 0.1, 0.2, 0.2, 0.1);
-            sprite.drawRoundedRect(pointB.x - 0.1, pointB.y - 0.1, 0.2, 0.2, 0.1);
+            sprite.drawCircle(pointA.x, pointA.y, 0.1);
+            sprite.drawCircle(pointB.x, pointB.y, 0.1);
             sprite.endFill();
 
             switch (constraint.type) {
