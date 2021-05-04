@@ -1,6 +1,6 @@
 {
   "name": "quark2d-pixi",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "repository": {
     "type": "git",
     "url": "https://github.com/fominvic81/Quark2d-PIXI"
@@ -35,6 +35,6 @@
   },
   "dependencies": {
     "pixi.js": "^6.0.2",
-    "quark2d": "^2.3.1"
+    "quark2d": "^2.4.0"
   }
 }
