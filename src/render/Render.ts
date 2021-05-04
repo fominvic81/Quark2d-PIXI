@@ -18,7 +18,7 @@ import { Mouse, QMouseEvent } from '../mouse/Mouse';
 
 interface colors {
     shape?: {(shape: Shape): number};
-    shapeOutline?: {(shape: Shape): number};
+    shapeOutline?: {(shape: Shape): number | undefined};
     constraint?: {(constraint: Constraint): number};
 }
 
@@ -77,7 +77,7 @@ export class Render {
     };
     colors: {
         shape: {(shape: Shape): number};
-        shapeOutline: {(shape: Shape): number};
+        shapeOutline: {(shape: Shape): number | undefined};
         constraint: {(constraint: Constraint): number};
     };
     
@@ -177,6 +177,13 @@ export class Render {
         }
     }
 
+    setShowStatus (value: boolean) {
+        this.options.showStatus = value;
+        if (!value) {
+            this.statusText.text = '';
+        }
+    }
+
     /**
      * Renders the world.
      */
@@ -214,7 +221,7 @@ export class Render {
                 }
 
                 if (this.options.showSleeping) {
-                    switch ((<Body>shape.body).sleepState) {
+                    switch (shape.body!.sleepState) {
                         case SleepingState.AWAKE:
                             sprite.alpha = 1;
                             break;
@@ -232,8 +239,8 @@ export class Render {
                     }
                 }
 
-                sprite.position.set(shape.body?.position.x, shape.body?.position.y);
-                sprite.rotation = (<Body>shape.body).angle;
+                sprite.position.set(shape.body!.center.x, shape.body!.center.y);
+                sprite.rotation = shape.body!.angle;
             }
         }
     }
@@ -306,27 +313,34 @@ export class Render {
         this.graphics.lineStyle(0.02, PIXI.utils.rgb2hex([1, 1, 1]));
         for (const body of this.engine.world.bodies.values()) {
             for (const shape of body.shapes) {
-                this.graphics.moveTo(shape.aabb.min.x, shape.aabb.min.y);
-                this.graphics.lineTo(shape.aabb.max.x, shape.aabb.min.y);
-                this.graphics.lineTo(shape.aabb.max.x, shape.aabb.max.y);
-                this.graphics.lineTo(shape.aabb.min.x, shape.aabb.max.y);
-                this.graphics.lineTo(shape.aabb.min.x, shape.aabb.min.y);
+                this.graphics.moveTo(shape.aabb.minX, shape.aabb.minY);
+                this.graphics.lineTo(shape.aabb.maxX, shape.aabb.minY);
+                this.graphics.lineTo(shape.aabb.maxX, shape.aabb.maxY);
+                this.graphics.lineTo(shape.aabb.minX, shape.aabb.maxY);
+                this.graphics.lineTo(shape.aabb.minX, shape.aabb.minY);
             }
         }
     }
 
     positions () {
-        this.graphics.beginFill(PIXI.utils.rgb2hex([0.5, 0.8, 0.1]));
+        this.graphics.beginFill(PIXI.utils.rgb2hex([0.8, 0.8, 0.8]));
         this.graphics.line.visible = false;
         for (const body of this.engine.world.bodies.values()) {
             this.graphics.drawRect(body.position.x - 0.05, body.position.y - 0.05, 0.1, 0.1);
         }
+        this.graphics.endFill();
+        this.graphics.beginFill(PIXI.utils.rgb2hex([0.5, 0.8, 0.1]));
+        for (const body of this.engine.world.bodies.values()) {
+            this.graphics.drawRect(body.center.x - 0.05, body.center.y - 0.05, 0.1, 0.1);
+        }
+        this.graphics.endFill();
         this.graphics.beginFill(PIXI.utils.rgb2hex([0.8, 0.2, 0.2]));
-            for (const body of this.engine.world.bodies.values()) {
-                for (const shape of body.shapes) {
+        for (const body of this.engine.world.bodies.values()) {
+            for (const shape of body.shapes) {
                 this.graphics.drawRect(shape.position.x - 0.04, shape.position.y - 0.04, 0.08, 0.08);
             }
         }
+        this.graphics.endFill();
     }
 
     status () {
@@ -379,15 +393,16 @@ export class Render {
     private createCircleSprite (circle: Circle): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
-        sprite.lineStyle(0.03, this.colors.shapeOutline(circle));
+        const outline = this.colors.shapeOutline(circle);
+        if (outline) sprite.lineStyle(outline ? 0.03 : 0, outline);
         sprite.beginFill(this.colors.shape(circle));
         const p = [];
 
-        const count = 50;
+        const count = 100 * circle.radius;
         for (let i = 0; i < count; ++i) {
             p.push(
-                Math.sin(i/count * Math.PI * 2) * (circle.radius) - (<Body>circle.body).position.x + circle.position.x,
-                Math.cos(i/count * Math.PI * 2) * (circle.radius) - (<Body>circle.body).position.y + circle.position.y,
+                Math.sin(i/count * Math.PI * 2) * (circle.radius) - circle.body!.center.x + circle.position.x,
+                Math.cos(i/count * Math.PI * 2) * (circle.radius) - circle.body!.center.y + circle.position.y,
             );
         }
         sprite.drawPolygon(p);
@@ -401,14 +416,21 @@ export class Render {
     private createConvexSprite (convex: Convex): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
-        sprite.lineStyle(0.03, this.colors.shapeOutline(convex));
+        const outline = this.colors.shapeOutline(convex);
+        if (outline) sprite.lineStyle(outline ? 0.03 : 0, outline);
+
+        let vertices;
 
         const verts = Vertices.create(convex.vertices);
-        Vertices.translate(verts, (<Body>convex.body).position.neg(Vector.temp[0]));
-        Vertices.rotate(verts, -(<Body>convex.body).angle);
-        const normals = Vertices.create(convex.normals);
-        Vertices.rotate(normals, -(<Body>convex.body).angle);
-        const vertices = this.roundedPath(verts, normals, convex.radius, Math.max(100 / verts.length, 1));
+        Vertices.translate(verts, convex.body!.center.neg(Vector.temp[0]));
+        Vertices.rotate(verts, -convex.body!.angle);
+        if (convex.radius) {
+            const normals = Vertices.create(convex.normals);
+            Vertices.rotate(normals, -convex.body!.angle);
+            vertices = this.roundedPath(verts, normals, convex.radius, Math.max(1000 / verts.length * convex.radius, 1));
+        } else {
+            vertices = verts;
+        }
 
         const path = [];
         for (const vertex of vertices) {
@@ -426,14 +448,15 @@ export class Render {
     private createEdgeSprite (edge: Edge): PIXI.Graphics {
         const sprite = new PIXI.Graphics();
 
-        sprite.lineStyle(0.03, this.colors.shapeOutline(edge));
+        const outline = this.colors.shapeOutline(edge);
+        if (outline) sprite.lineStyle(outline ? 0.03 : 0, outline);
 
         const verts = Vertices.create([edge.start, edge.end]);
-        Vertices.translate(verts, (<Body>edge.body).position.neg(Vector.temp[0]));
-        Vertices.rotate(verts, -(<Body>edge.body).angle);
+        Vertices.translate(verts, edge.body!.center.neg(Vector.temp[0]));
+        Vertices.rotate(verts, -edge.body!.angle);
         const normals = Vertices.create([edge.ngNormal, edge.normal]);
-        Vertices.rotate(normals, -(<Body>edge.body).angle);
-        const vertices = this.roundedPath(verts, normals, edge.radius, 50);
+        Vertices.rotate(normals, -edge.body!.angle);
+        const vertices = this.roundedPath(verts, normals, edge.radius, 100 * edge.radius);
 
         const path = [];
         for (const vertex of vertices) {
