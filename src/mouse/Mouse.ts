@@ -6,9 +6,8 @@ export interface QMouseEvent {
     event: any;
 }
 
-export class Mouse {
+export class Mouse extends Events {
     render: Render;
-    events: Events = new Events();
     pressed: boolean = false;
     leftButtonPressed : boolean = false;
     rightButtonPressed: boolean = false;
@@ -27,6 +26,7 @@ export class Mouse {
     touchmoveListener = (event: TouchEvent) => this.touchMove(event);
 
     constructor (render: Render) {
+        super();
 
         this.render = render;
 
@@ -62,7 +62,7 @@ export class Mouse {
         this.localPosition.set(event.offsetX, event.offsetY);
         this.updatePosition();
         
-        this.events.trigger('mouse-down', [{mouse: this, event}]);
+        this.trigger('mouse-down', [{mouse: this, event}]);
 
     }
     
@@ -82,7 +82,7 @@ export class Mouse {
         this.localPosition.set(event.offsetX, event.offsetY);
         this.updatePosition();
 
-        this.events.trigger('mouse-up', [{mouse: this, event}]);
+        this.trigger('mouse-up', [{mouse: this, event}]);
     }
 
     mouseMove (event: MouseEvent) {
@@ -92,11 +92,11 @@ export class Mouse {
         this.localMovement.set(event.movementX, event.movementY);
         this.updateMovement();
 
-        this.events.trigger('mouse-move', [{mouse: this, event}]);
+        this.trigger('mouse-move', [{mouse: this, event}]);
     }
 
     mouseWheel (event: MouseEvent) {
-        this.events.trigger('wheel', [{mouse: this, event}]);
+        this.trigger('wheel', [{mouse: this, event}]);
     }
 
     touchStart (event: TouchEvent) {
@@ -118,7 +118,7 @@ export class Mouse {
             this.localPosition.set(offsetX, offsetY);
             this.updatePosition();
 
-            this.events.trigger('mouse-down', [{mouse: this, event}]);
+            this.trigger('mouse-down', [{mouse: this, event}]);
         }
     }
 
@@ -138,7 +138,7 @@ export class Mouse {
             this.localPosition.set(offsetX, offsetY);
             this.updatePosition();
 
-            this.events.trigger('mouse-up', [{mouse: this, event}]);
+            this.trigger('mouse-up', [{mouse: this, event}]);
         }
     }
 
@@ -158,7 +158,7 @@ export class Mouse {
             this.localPosition.set(offsetX, offsetY);
             this.updatePosition();
 
-            this.events.trigger('mouse-move', [{mouse: this, event}]);
+            this.trigger('mouse-move', [{mouse: this, event}]);
         }
     }
 

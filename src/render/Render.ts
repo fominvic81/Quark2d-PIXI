@@ -127,17 +127,17 @@ export class Render {
             constraint: options.colors ? (options.colors.constraint ?? (() => constrColor)) : () => constrColor,
         }
 
-        engine.world.events.on('remove-body', (event) => {
+        engine.world.on('remove-body', (event) => {
             this.removeBody(event.body);
         });
-        engine.world.events.on('remove-constraint', (event) => {
+        engine.world.on('remove-constraint', (event) => {
             this.removeConstraint(event.constraint);
         });
 
         this.mouse = new Mouse(this);
 
-        this.mouse.events.on('mouse-move', (event) => {this.mouseMove(event)});
-        this.mouse.events.on('wheel', (event) => {this.mouseWheel(event)});
+        this.mouse.on('mouse-move', (event) => {this.mouseMove(event)});
+        this.mouse.on('wheel', (event) => {this.mouseWheel(event)});
     }
 
     setShowSleeping (value: boolean) {
@@ -454,7 +454,7 @@ export class Render {
         const verts = Vertices.create([edge.start, edge.end]);
         Vertices.translate(verts, edge.body!.center.neg(Vector.temp[0]));
         Vertices.rotate(verts, -edge.body!.angle);
-        const normals = Vertices.create([edge.ngNormal, edge.normal]);
+        const normals = Vertices.create([edge.normal.neg(new Vector()), edge.normal]);
         Vertices.rotate(normals, -edge.body!.angle);
         const vertices = this.roundedPath(verts, normals, edge.radius, 100 * edge.radius);
 
