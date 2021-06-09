@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import {
+    AABB,
+    AABBTree,
     Body,
     Circle,
     Constraint,
@@ -7,6 +9,7 @@ import {
     Convex,
     Edge,
     Engine,
+    GridBroadphase,
     Shape,
     ShapeType,
     SleepingState,
@@ -37,6 +40,7 @@ interface RenderOptioins {
     showAABBs?: boolean;
     showPositions?: boolean;
     showStatus?: boolean;
+    showBroadphase?: boolean;
 }
 
 /**
@@ -74,12 +78,14 @@ export class Render {
         showAABBs: boolean;
         showPositions: boolean;
         showStatus: boolean;
+        showBroadphase: boolean;
     };
     colors: {
         shape: {(shape: Shape): number};
         shapeOutline: {(shape: Shape): number | undefined};
         constraint: {(constraint: Constraint): number};
     };
+    aabb: AABB = new AABB();
     
     constructor (engine: Engine, options: RenderOptioins = {element: document.body}) {
         this.engine = engine;
@@ -119,6 +125,7 @@ export class Render {
             showAABBs: options.showAABBs ?? false,
             showPositions: options.showPositions ?? false,
             showStatus: options.showStatus ?? false,
+            showBroadphase: options.showBroadphase ?? false,
         };
         let constrColor = PIXI.utils.rgb2hex([0.8, 0.8, 0.8]);
         this.colors = {
@@ -196,12 +203,18 @@ export class Render {
         this.stage.scale.set(this.realScale, this.realScale);
         this.stage.pivot.set(-this.renderer.width / (this.realScale) * 0.5 - this.translate.x, -this.renderer.height / (this.realScale) * 0.5 - this.translate.y);
 
+        this.aabb.minX = (-this.canvas.width / 2) / this.realScale - this.translate.x;
+        this.aabb.maxX = (this.canvas.width / 2) / this.realScale - this.translate.x;
+        this.aabb.minY = (-this.canvas.height / 2) / this.realScale - this.translate.y;
+        this.aabb.maxY = (this.canvas.height / 2) / this.realScale - this.translate.y;
+
         this.shapes();
         if (this.options.showConstraints) this.constraints();
         if (this.options.showCollisions) this.collisions();
         if (this.options.showAABBs) this.AABBs();
         if (this.options.showPositions) this.positions();
         if (this.options.showStatus) this.status();
+        if (this.options.showBroadphase) this.broadphase();
 
         this.renderer.render(this.stage);
     }
@@ -351,11 +364,80 @@ export class Render {
             text += `tps: ${this.engine.timestamp?.tps?.toFixed(1)}\n`
             text += `bodies: ${this.engine.world.bodies.size}\n`;
             text += `constraints: ${this.engine.world.constraints.size}\n`;
-            text += `broadphase pairs: ${this.engine.manager.broadphase.activePairs.size}\n`;
-            text += `midphase pairs: ${this.engine.manager.midphase.activePairs.length}\n`;
-            text += `narrowphase pairs: ${this.engine.manager.activePairs.length}\n`;
+            text += `broadphase pairs: ${this.engine.manager.broadphase.getPairsCount()}\n`;
+            text += `midphase pairs: ${this.engine.manager.midphase.getPairsCount()}\n`;
+            text += `narrowphase pairs: ${this.engine.manager.getPairsCount()}\n`;
 
             this.statusText.text = text;
+        }
+    }
+
+    broadphase () {
+        const broadphase = this.engine.manager.broadphase;
+        if (broadphase instanceof GridBroadphase) {
+            this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
+
+            const grid = broadphase.grid;
+            const position = Vector.temp[0];
+
+            const minX = Math.round(this.aabb.minX / broadphase.gridSize - 0.5);
+            const minY = Math.round(this.aabb.minY / broadphase.gridSize - 0.5);
+            const maxX = Math.round(this.aabb.maxX / broadphase.gridSize + 0.5);
+            const maxY = Math.round(this.aabb.maxY / broadphase.gridSize + 0.5);
+
+            if (maxX - minX > 50 || maxY - minY > 50) {
+                this.aabb.minX -= broadphase.gridSize;
+                this.aabb.minY -= broadphase.gridSize;
+                for (const position of grid.keys()) {
+                    position.scale(broadphase.gridSize);
+                    if (!this.aabb.contains(position)) continue;
+                    this.graphics.drawRect(position.x, position.y, broadphase.gridSize, broadphase.gridSize);
+                }
+                this.aabb.minX += broadphase.gridSize;
+                this.aabb.minY += broadphase.gridSize;
+            } else {
+                for (let i = minX; i < maxX; ++i) {
+                    for (let j = minY; j < maxY; ++j) {
+                        position.set(i, j);
+                        if (grid.get(position)) {
+                            position.scale(broadphase.gridSize);
+                            this.graphics.drawRect(position.x, position.y, broadphase.gridSize, broadphase.gridSize);
+                        }
+                    }
+                }
+            }
+        } else if (broadphase instanceof AABBTree) {
+
+            const stack = [broadphase.root];
+
+            while (true) {
+                
+                const node = stack.pop();
+                if (!node) break;
+
+                if (!node.isLeaf) {
+                    stack.push(node.childA!);
+                    stack.push(node.childB!);
+                }
+
+                const aabb = node.aabb;
+
+                this.graphics.lineStyle(0.05, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
+                this.graphics.moveTo(aabb.minX, aabb.minY);
+                this.graphics.lineTo(aabb.maxX, aabb.minY);
+                this.graphics.lineTo(aabb.maxX, aabb.maxY);
+                this.graphics.lineTo(aabb.minX, aabb.maxY);
+                this.graphics.lineTo(aabb.minX, aabb.minY);
+
+                if (node.parent) {
+                    const start = node.parent.aabb.center(Vector.temp[0]);
+                    const end = node.aabb.center(Vector.temp[1]);
+
+                    this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.6, 0.6, 0.6]));
+                    this.graphics.moveTo(start.x, start.y);
+                    this.graphics.lineTo(end.x, end.y);
+                }
+            }
         }
     }
 
