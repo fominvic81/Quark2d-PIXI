@@ -299,11 +299,12 @@ export class Render {
 
         this.graphics.beginFill(PIXI.utils.rgb2hex([1, 0, 0]));
 
-        // TODO: use visible aabb
         for (const pair of this.engine.manager.activePairs) {
             if (pair.isSensor) continue;
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
+
+                if (this.aabb.contains(contact.vertex))
                 this.graphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
             }
         }
@@ -312,10 +313,12 @@ export class Render {
             if (pair.isSensor) continue;
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
-                this.graphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
+                    if (this.aabb.contains(contact.vertex)) {
+                    this.graphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
 
-                this.graphics.moveTo(contact.vertex.x, contact.vertex.y);
-                this.graphics.lineTo(contact.vertex.x + contact.pair.normal.x * 0.2, contact.vertex.y + contact.pair.normal.y * 0.2);
+                    this.graphics.moveTo(contact.vertex.x, contact.vertex.y);
+                    this.graphics.lineTo(contact.vertex.x + contact.pair.normal.x * 0.2, contact.vertex.y + contact.pair.normal.y * 0.2);
+                }
             }
         }
 
@@ -326,11 +329,13 @@ export class Render {
         this.graphics.lineStyle(0.02, PIXI.utils.rgb2hex([1, 1, 1]));
         for (const body of this.engine.world.bodies.values()) {
             for (const shape of body.shapes) {
-                this.graphics.moveTo(shape.aabb.minX, shape.aabb.minY);
-                this.graphics.lineTo(shape.aabb.maxX, shape.aabb.minY);
-                this.graphics.lineTo(shape.aabb.maxX, shape.aabb.maxY);
-                this.graphics.lineTo(shape.aabb.minX, shape.aabb.maxY);
-                this.graphics.lineTo(shape.aabb.minX, shape.aabb.minY);
+                if (this.aabb.overlaps(shape.aabb)) {
+                    this.graphics.moveTo(shape.aabb.minX, shape.aabb.minY);
+                    this.graphics.lineTo(shape.aabb.maxX, shape.aabb.minY);
+                    this.graphics.lineTo(shape.aabb.maxX, shape.aabb.maxY);
+                    this.graphics.lineTo(shape.aabb.minX, shape.aabb.maxY);
+                    this.graphics.lineTo(shape.aabb.minX, shape.aabb.minY);
+                }
             }
         }
     }
