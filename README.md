@@ -23,10 +23,10 @@ Mouse wheel to zoom.
         SleepingType,
         Vector,
         Factory,
-        MouseConstraint,
+        MouseJoint,
         Runner,
     } from 'quark2d';
-    import { Render as PixiRender } from 'quark2d-pixi';
+    import { Render } from 'quark2d-pixi';
 
     // Create new engine
     const engine = new Engine();
@@ -49,8 +49,8 @@ Mouse wheel to zoom.
     engine.world.add(Factory.Body.circle(new Vector(0, 7), 0.5));
 
     // Create new render
-    const render = new PixiRender(engine, {
-        element: document.body,
+    // @ts-ignore
+    const render = new Render(engine, document.body, {
         width: window.innerWidth,
         height: window.innerHeight,
 
@@ -58,16 +58,17 @@ Mouse wheel to zoom.
     });
 
     // Add mouse control
-    const mouseConstraint = new MouseConstraint(engine, render.mouse);
+    // @ts-ignore
+    const mouseJoint = new MouseJoint(engine, render.mouse);
 
     // Create runner
     const runner = new Runner();
 
     // Run runner
-    runner.events.on('render', (timestamp) => {
-        render.update();
+    runner.on('render', (timestamp) => {
+        render.update(timestamp.delta);
     });
-    runner.events.on('update', (timestamp) => {
+    runner.on('update', (timestamp) => {
         engine.update(timestamp);
     });
     runner.run();

@@ -1,6 +1,6 @@
 const path = require('path');
 
-const dev = process.env.NODE_ENV === 'development';
+const dev = process.argv[process.argv.indexOf('--mode') + 1] === 'development';
 
 module.exports = {
     devtool: dev ? 'inline-cheap-source-map' : false,
@@ -9,6 +9,8 @@ module.exports = {
     output: {
         filename: 'index.js',
         path: path.resolve(__dirname, 'build'),
+        library: 'quark2d-pixi',
+        libraryTarget: 'commonjs-module',
     },
     module: {
         rules: [

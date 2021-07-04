@@ -4,8 +4,7 @@ import {
     AABBTree,
     Body,
     Circle,
-    Constraint,
-    ConstraintType,
+    Joint,
     Convex,
     Edge,
     Engine,
@@ -15,18 +14,23 @@ import {
     SleepingState,
     Vector,
     Vertex,
-    Vertices
+    Vertices,
+    JointType,
 } from 'quark2d';
 import { Mouse, QMouseEvent } from '../mouse/Mouse';
+
+enum BroadphaseType {
+    Grid,
+    AABBTree,
+}
 
 interface colors {
     shape?: {(shape: Shape): number};
     shapeOutline?: {(shape: Shape): number | undefined};
-    constraint?: {(constraint: Constraint): number};
+    joint?: {(joint: Joint): number};
 }
 
 interface RenderOptioins {
-    element: HTMLElement;
     width?: number;
     height?: number;
     backgroundColor?: number;
@@ -35,25 +39,13 @@ interface RenderOptioins {
     colors?: colors;
     showSleeping?: boolean;
     showCollisions?: boolean;
-    showConstraints?: boolean;
+    showJoints?: boolean;
     showSensors?: boolean;
     showAABBs?: boolean;
     showPositions?: boolean;
     showStatus?: boolean;
     showBroadphase?: boolean;
 }
-
-/**
- * @example:
- * 
- *     const render = new PixiRender(engine, {
- *         element: document.body,
- *         width: 800,
- *         height: 600,
- * 
- *         showCollisions: true,
- *     });
- */
 
 export class Render {
     renderer: PIXI.Renderer;
@@ -65,6 +57,7 @@ export class Render {
     statusUpdateTimer: number = 0;
     graphics: PIXI.Graphics = new PIXI.Graphics();
     userGraphics: PIXI.Graphics = new PIXI.Graphics();
+    element: HTMLElement;
     canvas: HTMLCanvasElement;
     mouse: Mouse;
     scale: number;
@@ -73,7 +66,7 @@ export class Render {
     options: {
         showSleeping: boolean;
         showCollisions: boolean;
-        showConstraints: boolean;
+        showJoints: boolean;
         showSensors: boolean;
         showAABBs: boolean;
         showPositions: boolean;
@@ -83,18 +76,19 @@ export class Render {
     colors: {
         shape: {(shape: Shape): number};
         shapeOutline: {(shape: Shape): number | undefined};
-        constraint: {(constraint: Constraint): number};
+        joint: {(joint: Joint): number};
     };
     aabb: AABB = new AABB();
     
-    constructor (engine: Engine, options: RenderOptioins = {element: document.body}) {
+    constructor (engine: Engine, element: HTMLElement = document.body, options: RenderOptioins = {}) {
         this.engine = engine;
 
         const width: number = options.width ?? 800;
         const height: number = options.height ?? 600;
 
+        this.element = element;
         this.canvas = this.createCanvas(width, height);
-        options.element.appendChild(this.canvas);
+        element.appendChild(this.canvas);
 
         this.renderer = new PIXI.Renderer({
             width,
@@ -116,11 +110,11 @@ export class Render {
         this.scale = options.scale ?? 30;
         this.realScale = this.scale;
         this.setScale(this.scale);
-        this.translate = options.translate === undefined ? new Vector(0, 0) : options.translate.clone();
+        this.translate = options.translate === undefined ? new Vector(0, 0) : options.translate.copy();
         this.options = {
             showSleeping: options.showSleeping ?? true,
             showCollisions: options.showCollisions ?? false,
-            showConstraints: options.showConstraints ?? false,
+            showJoints: options.showJoints ?? false,
             showSensors: options.showSensors ?? true,
             showAABBs: options.showAABBs ?? false,
             showPositions: options.showPositions ?? false,
@@ -131,14 +125,14 @@ export class Render {
         this.colors = {
             shape: options.colors ? (options.colors.shape ?? (() => Render.randomColor())) : (() => Render.randomColor()),
             shapeOutline: options.colors ? (options.colors.shapeOutline ?? (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8]))) : (() => PIXI.utils.rgb2hex([0.8, 0.8, 0.8])),
-            constraint: options.colors ? (options.colors.constraint ?? (() => constrColor)) : () => constrColor,
+            joint: options.colors ? (options.colors.joint ?? (() => constrColor)) : () => constrColor,
         }
 
         engine.world.on('remove-body', (event) => {
             this.removeBody(event.body);
         });
-        engine.world.on('remove-constraint', (event) => {
-            this.removeConstraint(event.constraint);
+        engine.world.on('remove-joint', (event) => {
+            this.removejoint(event.joint);
         });
 
         this.mouse = new Mouse(this);
@@ -160,11 +154,11 @@ export class Render {
         }
     }
 
-    setShowConstraints (value: boolean) {
-        this.options.showConstraints = value;
+    setShowJoints (value: boolean) {
+        this.options.showJoints = value;
         if (!value) {
-            for (const constraint of this.engine.world.constraints.values()) {
-                const sprite = this.sprites.get(constraint.id);
+            for (const joint of this.engine.world.joints.values()) {
+                const sprite = this.sprites.get(joint.id);
                 if (!sprite) continue;
                 sprite.clear();
             }
@@ -209,7 +203,7 @@ export class Render {
         this.aabb.maxY = (this.canvas.height / 2) / this.realScale - this.translate.y;
 
         this.shapes();
-        if (this.options.showConstraints) this.constraints();
+        if (this.options.showJoints) this.joints();
         if (this.options.showCollisions) this.collisions();
         if (this.options.showAABBs) this.AABBs();
         if (this.options.showPositions) this.positions();
@@ -259,32 +253,34 @@ export class Render {
     }
 
     /**
-     * Renders the constraints
+     * Renders the joints
      */
-    private constraints () {
-        for (const constraint of this.engine.world.constraints.values()) {
-            let sprite = this.sprites.get(constraint.id);
+    private joints () {
+        for (const joint of this.engine.world.joints.values()) {
+            let sprite = this.sprites.get(joint.id);
             if (!sprite) {
                 sprite = new PIXI.Graphics();
                 sprite.zIndex = 2;
                 this.stage.addChild(sprite);
-                this.sprites.set(constraint.id, sprite);
+                this.sprites.set(joint.id, sprite);
                 this.stage.sortChildren();
             }
-
-            const pointA = constraint.getWorldPointA();
-            const pointB = constraint.getWorldPointB();
-
             sprite.clear();
 
-            sprite.beginFill(this.colors.constraint(constraint));
-            sprite.drawCircle(pointA.x, pointA.y, 0.1);
-            sprite.drawCircle(pointB.x, pointB.y, 0.1);
-            sprite.endFill();
+            const color = this.colors.joint(joint);
 
-            switch (constraint.type) {
-                case ConstraintType.DISTANCE_CONSTRAINT:
-                    sprite.lineStyle(0.08, this.colors.constraint(constraint));
+            switch (joint.type) {
+                case JointType.DIST_JOINT:
+                    const pointA = joint.getWorldPointA();
+                    const pointB = joint.getWorldPointB();
+        
+        
+                    sprite.beginFill(color);
+                    sprite.drawCircle(pointA.x, pointA.y, 0.1);
+                    sprite.drawCircle(pointB.x, pointB.y, 0.1);
+                    sprite.endFill();
+
+                    sprite.lineStyle(0.08, color);
                     sprite.moveTo(pointA.x, pointA.y);
                     sprite.lineTo(pointB.x, pointB.y);
                     break;
@@ -305,7 +301,7 @@ export class Render {
                 const contact = pair.contacts[i];
 
                 if (this.aabb.contains(contact.vertex))
-                this.graphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
+                    this.graphics.drawRect(contact.vertex.x - 0.05, contact.vertex.y - 0.05, 0.1, 0.1);
             }
         }
 
@@ -313,7 +309,7 @@ export class Render {
             if (pair.isSensor) continue;
             for (let i = 0; i < pair.contactsCount; ++i) {
                 const contact = pair.contacts[i];
-                    if (this.aabb.contains(contact.vertex)) {
+                if (this.aabb.contains(contact.vertex)) {
                     this.graphics.lineStyle(0.04, PIXI.utils.rgb2hex([1, 1, 0]));
 
                     this.graphics.moveTo(contact.vertex.x, contact.vertex.y);
@@ -362,16 +358,23 @@ export class Render {
     }
 
     status () {
-        if (this.statusUpdateTimer > 0.1) {
+        if (this.statusUpdateTimer > 0.08) {
             this.statusUpdateTimer = 0;
             let text = '';
 
             text += `tps: ${this.engine.timestamp?.tps?.toFixed(1)}\n`
             text += `bodies: ${this.engine.world.bodies.size}\n`;
-            text += `constraints: ${this.engine.world.constraints.size}\n`;
+            text += `joints: ${this.engine.world.joints.size}\n`;
             text += `broadphase pairs: ${this.engine.manager.broadphase.getPairsCount()}\n`;
             text += `midphase pairs: ${this.engine.manager.midphase.getPairsCount()}\n`;
             text += `narrowphase pairs: ${this.engine.manager.getPairsCount()}\n`;
+            // @ts-ignore
+            if (this.engine.timer) {
+                // @ts-ignore
+                for (const timeLog of this.engine.timer.timeLogs.entries()) {
+                    text += `${timeLog[0]}: ${timeLog[1].toFixed(1)}ms\n`;
+                }
+            }
 
             this.statusText.text = text;
         }
@@ -379,70 +382,75 @@ export class Render {
 
     broadphase () {
         const broadphase = this.engine.manager.broadphase;
-        if (broadphase instanceof GridBroadphase) {
-            this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
+        switch (broadphase.type) {
+            case BroadphaseType.Grid:
+                const gridBroadphase = <GridBroadphase>broadphase;
+                this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
 
-            const grid = broadphase.grid;
-            const position = Vector.temp[0];
+                const grid = gridBroadphase.grid;
+                const position = Vector.temp[0];
 
-            const minX = Math.round(this.aabb.minX / broadphase.gridSize - 0.5);
-            const minY = Math.round(this.aabb.minY / broadphase.gridSize - 0.5);
-            const maxX = Math.round(this.aabb.maxX / broadphase.gridSize + 0.5);
-            const maxY = Math.round(this.aabb.maxY / broadphase.gridSize + 0.5);
+                const minX = Math.round(this.aabb.minX / gridBroadphase.cellSize - 0.5);
+                const minY = Math.round(this.aabb.minY / gridBroadphase.cellSize - 0.5);
+                const maxX = Math.round(this.aabb.maxX / gridBroadphase.cellSize + 0.5);
+                const maxY = Math.round(this.aabb.maxY / gridBroadphase.cellSize + 0.5);
 
-            if (maxX - minX > 50 || maxY - minY > 50) {
-                this.aabb.minX -= broadphase.gridSize;
-                this.aabb.minY -= broadphase.gridSize;
-                for (const position of grid.keys()) {
-                    position.scale(broadphase.gridSize);
-                    if (!this.aabb.contains(position)) continue;
-                    this.graphics.drawRect(position.x, position.y, broadphase.gridSize, broadphase.gridSize);
-                }
-                this.aabb.minX += broadphase.gridSize;
-                this.aabb.minY += broadphase.gridSize;
-            } else {
-                for (let i = minX; i < maxX; ++i) {
-                    for (let j = minY; j < maxY; ++j) {
-                        position.set(i, j);
-                        if (grid.get(position)) {
-                            position.scale(broadphase.gridSize);
-                            this.graphics.drawRect(position.x, position.y, broadphase.gridSize, broadphase.gridSize);
+                if (maxX - minX > 50 || maxY - minY > 50) {
+                    this.aabb.minX -= gridBroadphase.cellSize;
+                    this.aabb.minY -= gridBroadphase.cellSize;
+                    for (const position of grid.keys()) {
+                        position.scale(gridBroadphase.cellSize);
+                        if (!this.aabb.contains(position)) continue;
+                        this.graphics.drawRect(position.x, position.y, gridBroadphase.cellSize, gridBroadphase.cellSize);
+                    }
+                    this.aabb.minX += gridBroadphase.cellSize;
+                    this.aabb.minY += gridBroadphase.cellSize;
+                } else {
+                    for (let i = minX; i < maxX; ++i) {
+                        for (let j = minY; j < maxY; ++j) {
+                            position.set(i, j);
+                            if (grid.get(position)) {
+                                position.scale(gridBroadphase.cellSize);
+                                this.graphics.drawRect(position.x, position.y, gridBroadphase.cellSize, gridBroadphase.cellSize);
+                            }
                         }
                     }
                 }
-            }
-        } else if (broadphase instanceof AABBTree) {
+                break;
+            case BroadphaseType.AABBTree:
+                const AABBTree = <AABBTree>broadphase;
 
-            const stack = [broadphase.root];
+                const stack = [AABBTree.root];
 
-            while (true) {
-                
-                const node = stack.pop();
-                if (!node) break;
+                while (true) {
+                    
+                    const node = stack.pop();
+                    if (!node) break;
 
-                if (!node.isLeaf) {
-                    stack.push(node.childA!);
-                    stack.push(node.childB!);
+                    if (!node.isLeaf) {
+                        stack.push(node.childA!);
+                        stack.push(node.childB!);
+                    }
+
+                    const aabb = node.aabb;
+
+                    this.graphics.lineStyle(0.05, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
+                    this.graphics.moveTo(aabb.minX, aabb.minY);
+                    this.graphics.lineTo(aabb.maxX, aabb.minY);
+                    this.graphics.lineTo(aabb.maxX, aabb.maxY);
+                    this.graphics.lineTo(aabb.minX, aabb.maxY);
+                    this.graphics.lineTo(aabb.minX, aabb.minY);
+
+                    if (node.parent) {
+                        const start = node.parent.aabb.center(Vector.temp[0]);
+                        const end = node.aabb.center(Vector.temp[1]);
+
+                        this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.6, 0.6, 0.6]));
+                        this.graphics.moveTo(start.x, start.y);
+                        this.graphics.lineTo(end.x, end.y);
+                    }
                 }
-
-                const aabb = node.aabb;
-
-                this.graphics.lineStyle(0.05, PIXI.utils.rgb2hex([0.2, 0.3, 0.6]));
-                this.graphics.moveTo(aabb.minX, aabb.minY);
-                this.graphics.lineTo(aabb.maxX, aabb.minY);
-                this.graphics.lineTo(aabb.maxX, aabb.maxY);
-                this.graphics.lineTo(aabb.minX, aabb.maxY);
-                this.graphics.lineTo(aabb.minX, aabb.minY);
-
-                if (node.parent) {
-                    const start = node.parent.aabb.center(Vector.temp[0]);
-                    const end = node.aabb.center(Vector.temp[1]);
-
-                    this.graphics.lineStyle(0.08, PIXI.utils.rgb2hex([0.6, 0.6, 0.6]));
-                    this.graphics.moveTo(start.x, start.y);
-                    this.graphics.lineTo(end.x, end.y);
-                }
-            }
+                break;
         }
     }
 
@@ -458,10 +466,10 @@ export class Render {
         this.sprites.delete(shape.id);
     }
 
-    private removeConstraint (constraint: Constraint) {
-        const sprite = this.sprites.get(constraint.id);
+    private removejoint (joint: Joint) {
+        const sprite = this.sprites.get(joint.id);
         if (sprite) this.stage.removeChild(sprite);
-        this.sprites.delete(constraint.id);
+        this.sprites.delete(joint.id);
     }
 
     private createShapeSprite (shape: Shape) {
@@ -509,7 +517,7 @@ export class Render {
         let vertices;
 
         const verts = Vertices.create(convex.vertices);
-        Vertices.translate(verts, convex.body!.center.neg(Vector.temp[0]));
+        Vertices.translate(verts, convex.body!.center.negOut(Vector.temp[0]));
         Vertices.rotate(verts, -convex.body!.angle);
         if (convex.radius) {
             const normals = Vertices.create(convex.normals);
@@ -539,9 +547,9 @@ export class Render {
         if (outline) sprite.lineStyle(outline ? 0.03 : 0, outline);
 
         const verts = Vertices.create([edge.start, edge.end]);
-        Vertices.translate(verts, edge.body!.center.neg(Vector.temp[0]));
+        Vertices.translate(verts, edge.body!.center.negOut(Vector.temp[0]));
         Vertices.rotate(verts, -edge.body!.angle);
-        const normals = Vertices.create([edge.normal.neg(new Vector()), edge.normal]);
+        const normals = Vertices.create([edge.normal.negOut(new Vector()), edge.normal]);
         Vertices.rotate(normals, -edge.body!.angle);
         const vertices = this.roundedPath(verts, normals, edge.radius, 100 * edge.radius);
 
@@ -569,7 +577,7 @@ export class Render {
             const cos = Vector.dot(normal1, normal2);
             const sin = Vector.cross(normal1, normal2);
 
-            const offset = normal1.scale(radius, Vector.temp[0]);
+            const offset = normal1.scaleOut(radius, Vector.temp[0]);
             newVertices.push(Vector.add(vertex, offset, new Vector()));
 
             const angle = Math.abs(Math.atan2(sin, cos));
@@ -582,7 +590,7 @@ export class Render {
                 const x = offset.x;
                 offset.x = x * sCos - offset.y * sSin;
                 offset.y = x * sSin + offset.y * sCos;
-                const newVertex = offset.clone().add(vertex);
+                const newVertex = offset.copy().add(vertex);
 
                 newVertices.push(newVertex);
             }
